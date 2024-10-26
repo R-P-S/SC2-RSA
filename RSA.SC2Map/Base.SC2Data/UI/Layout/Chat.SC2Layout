@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <Frame type="GameUI" name="GameUI" file="GameUI">
+      <Animation name="GameUI_Init">
+        <Event event="OnShown" action="Play"/>
+          <Controller type="Property" property="MaxCharacters" end="Pause" frame="$GameUI_ChatBar/ChatEditBox">
+            <Key type="Property" time="0" value="1024"/>
+          </Controller>
+      </Animation>
+    </Frame>
+</Desc>

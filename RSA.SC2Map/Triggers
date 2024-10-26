@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TriggerData>
+    <Root>
+        <Item Type="CustomScript" Id="FA95A38C"/>
+    </Root>
+    <Element Type="CustomScript" Id="FA95A38C">
+        <ScriptCode>
+            include &quot;scripts/includes.galaxy&quot;
+        </ScriptCode>
+        <InitFunc>MainInit</InitFunc>
+    </Element>
+</TriggerData>

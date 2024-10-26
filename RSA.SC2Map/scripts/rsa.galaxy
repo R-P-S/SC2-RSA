@@ -1,0 +1,62 @@
+//============
+// rsa.galaxy 
+//============
+
+static const string PUBLIC_KEY_N = "59836062111949931328673805256869548387146331768102044697578036747887397268120237771317709155860848000706492961873626726687210011204125928426593546499955489811398801974213454697055165060446292179370626663955575076170510122662473260994987774010519459409484210665466339087163839460298360324679580817965957358639";
+static const string PUBLIC_KEY_E = "65537";
+
+// Generates a hash of the original message
+static string MessageHash(string msg, int player);
+// Decrypts RSA hash
+static string RSADecrypt(string msg, structref<BigNum_t> base, structref<BigNum_t> exp, structref<BigNum_t> mod, structref<BigNum_t> result);
+// Verifies the RSA signature
+bool RSAVerifySignature(string msg, int player);
+
+static string MessageHash(string msg, int player) {
+    string acc = PlayerHandle(player); // get player handle
+    if( acc == "" ) { acc = "SC2E-TEST-ACCOUNT"; } // For offline editor testing
+    return HexToDecimal(SHA1HashString(SplitStringAt(msg, "|", 1) + "|" + acc)); // Return msg hash in decimal format
+}
+
+static string RSADecrypt(string msg, structref<BigNum_t> base, structref<BigNum_t> exp, structref<BigNum_t> mod, structref<BigNum_t> result) {
+    StringToBigNum(SplitStringAt(msg, "|", 3), base); // convert encrypted hash to array
+    StringToBigNum(PUBLIC_KEY_E, exp); // convert public key exponent to array
+    StringToBigNum(PUBLIC_KEY_N, mod); // convert public key modulus to array
+    BigNumModExp(base, exp, mod, result); // function for decrypting
+
+    return BigNumToString(result); // convert decrypted hash to string
+}
+
+bool RSAVerifySignature(string msg, int player) {
+    BigNum_t base;
+    BigNum_t exp;
+    BigNum_t mod;
+    BigNum_t result;
+
+    string decoded = DecodeBase64(msg); // decode chat message
+    string messageHash = MessageHash(decoded, player); // hash original message
+    string decryptedHash = RSADecrypt(decoded, base, exp, mod, result); // decrypted rsa hash
+
+    return StringEqual(decryptedHash, messageHash, true); // compare decrypted hash & original msg hash
+}
+
+// Encoded string for editor test
+// -m {chat msg} -m SGVsbG98U0MyRS1URVNULUFDQ09VTlR8MTgyMTYxNDEyNDI0MDI4OTEwNjA5NzI5NTY1MDg5MzM1MDk0OTkxNzk5OTM3MzUyNjI3NTQzMDkyOTUyNDM1NzQ3NjA2ODQ3NTEzNDgzODUxNDA5MzIyOTU1NTM1MDA0NzIyMjQ0NzY1NTc5NzgzNTgyMzc0MzU2MDYzODgwODkxNDY5NTcxODg4MzM3MjI3ODYzOTg1MTY2OTUyNjg3NjkwMzI5NTgzNzY4NzQ4NDM4MjgxNTUxNTkwMjI2NzY0MTczODI4MTM2MjkyMTAzMTYwMTc1MjcyMjEyODMwNTAyMTEzMjc2Mjc2NjcxOTg4MDM4MTUyNzg3Mjc4NDc0MzM2MjcwNDA1MzMwNDk1OTU0NTY3Mjk1Nzc3NTg0NzQwMDQ4MjQ4OTgwMDkyNDEwMjAyMzM=
+bool gt_DecryptMessage (bool a, bool b) {
+    string encryptedMsg = StringWord(EventChatMessage(false), 2);
+
+    if (a) { if (encryptedMsg == "") { return false; } }
+    // Determine if signature is valid
+    if (RSAVerifySignature(encryptedMsg, EventPlayer())) { 
+        UIDisplayMessage(PlayerGroupSingle(EventPlayer()), c_messageAreaDebug, StringToText("Signature Passed"));
+    } else { 
+        UIDisplayMessage(PlayerGroupSingle(EventPlayer()), c_messageAreaDebug, StringToText("Signature Failed")); 
+    }
+
+    return true;
+}
+
+void DecryptMessageInit() {
+    trigger t = TriggerCreate("gt_DecryptMessage");
+    TriggerAddEventChatMessage(t, c_playerAny, "-m", false);
+}

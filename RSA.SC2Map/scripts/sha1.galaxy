@@ -1,0 +1,249 @@
+//=============
+// sha1.galaxy 
+//=============
+
+// Provides a work space for producing SHA-1 hashes.
+// The algorthim was lifted from wikipedia and tested against the standard JAVA implementation.
+// These hashes are used as means of data integrity testing.
+// As this is a workspace, it is not responsible for the 512bit block generation.
+
+// NOTE : The masking logic is strange due to Galaxy giving the operators strange behaviours.
+// The right hand side is converted to the modulus of 32 automaticly and if negative goes down from the last multiple of 32.
+// This is important since a shift of 32 will act as a shift of 0 instead of compeltly destroying data.
+// NOTE : There is no bitwise rotate (only shifts).
+// Rotation is done using a cut and snip approach with shifts.
+
+// The hashable block size in words.
+const int SHA1_BLOCK_SIZE = 16;
+// The hash size in words.
+const int SHA1_HASH_SIZE = 5;
+// The resulting hash.
+typedef int[SHA1_HASH_SIZE] sha1_hasher_hash_t;
+// The 512 bit long source block.
+typedef int[SHA1_BLOCK_SIZE] sha1_hasher_block_t;
+// Functions passed to feed block data in up to 4 bytes at a time.
+int sha1_hasher_data_reader_t();
+// Instance to read channel
+ascii_channel_t channel;
+// The actual work space object type.
+struct sha1_hasher_t{
+    // The actual hash.
+    sha1_hasher_hash_t h;
+};
+
+// Performs initial seeding of the hasher workspace.
+void SHA1HasherInitalize(structref<sha1_hasher_t> obj);
+// Processes a hash block.
+void SHA1HasherProcess(structref<sha1_hasher_t> obj, arrayref<sha1_hasher_block_t> block);
+// Finishes off a block from position len. If space is not sufficient an extra block of pading will be used.
+// The length is for the sum of all blocks processed in bytes.
+void SHA1HasherProcessFinal(structref<sha1_hasher_t> obj, arrayref<sha1_hasher_block_t> block, int len);
+// Copies the hash from the workspace.
+void SHA1HasherHash(structref<sha1_hasher_t> obj, arrayref<sha1_hasher_hash_t> hash);
+// Does a complete SHA-1 hash of some data source. Length is in bytes.
+// Produces padding and length at end.
+void SHA1HasherHashData(structref<sha1_hasher_t> obj, funcref<sha1_hasher_data_reader_t> reader, int len);
+// Wrapper for ASCIIChannelRead
+int ReadChannel();
+// Computes the SHA-1 hash of the given input string. Returns the resulting hash as a 40-character hexadecimal string
+string SHA1HashString(string s);
+
+// Compatibility version. This is so that bug fixes do not break existing code.
+int SHA1HasherCompatibility = 1;
+
+void SHA1HasherInitalize(structref<sha1_hasher_t> obj){
+    // Set the initial hash state. These constants are defined by SHA-1 standard.
+    obj.h[0] = 0x67452301;
+    obj.h[1] = 0x6FCDAB89 | (1 << 31);
+    obj.h[2] = 0x18BADCFE | (1 << 31);
+    obj.h[3] = 0x10325476;
+    obj.h[4] = 0x43D2E1F0 | (1 << 31);
+}
+void SHA1HasherProcess(structref<sha1_hasher_t> obj, arrayref<sha1_hasher_block_t> block){
+    int[80] w;
+    int i;
+    int temp;
+    sha1_hasher_hash_t h;
+    // Copy the block into the local workspace.
+    for( i = 0 ; i < SHA1_BLOCK_SIZE ; i+= 1 ){
+        // Must convert endian or addition will mess up later.
+        w[i] = (block[i] << 24) | ((block[i] << 8) & 0xFF0000) | ((block[i] >> 8) & 0xFF00) | ((block[i] >> 24) & 0xFF);
+    }
+    // Now extend.
+    for( ; i < 80 ; i+= 1 ){
+        temp = w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16];
+        //:Left Rotate 1
+        w[i] = (temp << 1) | ((temp >> 31) & 0x01);
+    }
+    // Now initialize block hash.
+    for( i = 0 ; i < SHA1_HASH_SIZE ; i+= 1 ){
+        h[i] = obj.h[i];
+    }
+    // Process first 20 units.
+    for( i = 0 ; i < 20 ; i+= 1 ){
+        //:Left Rotate 5
+        temp = ((h[0] << 5) | ((h[0] >> 27) & 0x1F)) + ((h[1] & h[2]) | ((~h[1]) & h[3])) + h[4] + 0x5A827999 + w[i];
+        // Hash generation logic. Maybe a separate function?
+        h[4] = h[3];
+        h[3] = h[2];
+        //:Left Rotate 30
+        h[2] = (h[1] << 30) | ((h[1] >> 2) & 0x3FFFFFFF);
+        h[1] = h[0];
+        h[0] = temp;
+    }
+    // Process units 20 to 39.
+    for( ; i < 40 ; i+= 1 ){
+        //:Left Rotate 5
+        temp = ((h[0] << 5) | ((h[0] >> 27) & 0x1F)) + (h[1] ^ h[2] ^ h[3]) + h[4] + 0x6ED9EBA1 + w[i];
+        // Hash generation logic. Maybe a separate function?
+        h[4] = h[3];
+        h[3] = h[2];
+        //:Left Rotate 30
+        h[2] = (h[1] << 30) | ((h[1] >> 2) & 0x3FFFFFFF);
+        h[1] = h[0];
+        h[0] = temp;
+    }
+    // Process units 40 to 59.
+    for( ; i < 60 ; i+= 1 ){
+        //:Left Rotate 5
+        temp = ((h[0] << 5) | ((h[0] >> 27) & 0x1F)) + ((h[1] & h[2]) | (h[1] & h[3]) | (h[2] & h[3])) + h[4] + (0x0F1BBCDC | (1 << 31)) + w[i];
+        // Hash generation logic. Maybe a separate function?
+        h[4] = h[3];
+        h[3] = h[2];
+        //:Left Rotate 30
+        h[2] = (h[1] << 30) | ((h[1] >> 2) & 0x3FFFFFFF);
+        h[1] = h[0];
+        h[0] = temp;
+    }
+    // Process last 20 units.
+    for( ; i < 80 ; i+= 1 ){
+        //:Left Rotate 5
+        temp = ((h[0] << 5) | ((h[0] >> 27) & 0x1F)) + (h[1] ^ h[2] ^ h[3]) + h[4] + (0x4A62C1D6 | (1 << 31)) + w[i];
+        // Hash generation logic. Maybe a separate function?
+        h[4] = h[3];
+        h[3] = h[2];
+        //:Left Rotate 30
+        h[2] = (h[1] << 30) | ((h[1] >> 2) & 0x3FFFFFFF);
+        h[1] = h[0];
+        h[0] = temp;
+    }
+    // Finally append block hashes.
+    for( i = 0 ; i < SHA1_HASH_SIZE ; i+= 1 ){
+        obj.h[i]+= h[i];
+    }
+}
+void SHA1HasherProcessFinal(structref<sha1_hasher_t> obj, arrayref<sha1_hasher_block_t> block, int len){
+    int pos;
+    int sub;
+    // Determine sub-block position.
+    pos = (len % (SHA1_BLOCK_SIZE * 4)) / 4;
+    sub = (len % 4) * 8;
+    // Append terminator.
+    if( SHA1HasherCompatibility == 0 ){
+        // ERROR : Incorrectly transpose first bit of block[pos] as last bit of block[pos] when sub == 0.
+        block[pos] = (0x80 << sub) | (block[pos] & ((2 << (sub - 1)) - 1));
+    }else{
+        block[pos] = (0x80 << sub) | (block[pos] & ((1 << sub) - 1));
+    }
+    pos+= 1;
+    // Determine if another block of padding is needed.
+    if( pos > (SHA1_BLOCK_SIZE - 2) ){
+        // Pad block with 0.
+        for( ; pos < SHA1_BLOCK_SIZE ; pos+= 1 ){
+            block[pos] = 0;
+        }
+        // Hash block.
+        SHA1HasherProcess(obj, block);
+        // Start at begining of new block.
+        pos = 0;
+    }
+    // Pad remainder of block with 0.
+    for( ; pos < 14 ; pos+= 1 ){
+        block[pos] = 0;
+    }
+    // Append big endian message length (in bits). Cannot support length >2147483647 bytes.
+    block[SHA1_BLOCK_SIZE - 2] = (len >> 29) & 0x07;
+    block[SHA1_BLOCK_SIZE - 1] = (len << 27) | ((len << 11) & 0xFF0000) | ((len >> 5) & 0xFF00) | ((len >> 21) & 0xFF);
+    // Hash the last block.
+    SHA1HasherProcess(obj, block);
+}
+void SHA1HasherHash(structref<sha1_hasher_t> obj, arrayref<sha1_hasher_hash_t> hash){
+    int i;
+    // Bulk copy the hash.
+    for( i = 0 ; i < SHA1_HASH_SIZE ; i+= 1 ){
+        hash[i] = obj.h[i];
+    }
+}
+void SHA1HasherHashData(structref<sha1_hasher_t> obj, funcref<sha1_hasher_data_reader_t> reader, int len){
+    sha1_hasher_block_t block;
+    int pos;
+    int i;
+    // Initalize hasher.
+    SHA1HasherInitalize(obj);
+    // Whole block read loop.
+    pos = 0;
+    while( len >= 64 ){
+        // Read block.
+        for( i = 0 ; i < 16 ; i+= 1 ){
+            block[i] = reader();
+        }
+        // Hash block.
+        SHA1HasherProcess(obj, block);
+        // Advance.
+        pos+= 64;
+        len-= 64;
+    }
+    // Sub-block read.
+    for( i = 0 ; i < (len / 4) ; i+= 1 ){
+        block[i] = reader();
+    }
+    pos+= i * 4;
+    len-= i * 4;
+    // Read sub-int.
+    if( len > 0 ){
+        block[i] = reader() & ((1 << (8 * len)) - 1);
+        pos+= len;
+    // Or clear next int.
+    }else{
+        block[i] = 0;
+    }
+    // Now work on padding.
+    len = pos;
+    block[i]|= (0x80 << ((pos % 4) * 8));
+    pos = ((pos / 4) + 1) * 4;
+    // Determine if another block of padding is needed.
+    if( (pos % 64) > 56 ){
+        // Pad block with 0.
+        for( i = (pos % 64) / 4 ; i < 16 ; i+= 1 ){
+            block[i] = 0;
+        }
+        // Hash block.
+        SHA1HasherProcess(obj, block);
+        // Advance a block.
+        pos = ((pos / 64) + 1) * 64;
+    }
+    // Pad remainder of block with 0.
+    for( i = (pos % 64) / 4 ; i < 14 ; i+= 1 ){
+        block[i] = 0;
+    }
+    // Append big endian message length (in bits). Cannot support length >268435455 bytes.
+    block[14] = (len >> 29) & 0x07;
+    block[15] = (len << 27) | ((len << 11) & 0xFF0000) | ((len >> 5) & 0xFF00) | ((len >> 21) & 0xFF);
+    // Hash the last block.
+    SHA1HasherProcess(obj, block);
+}
+
+int ReadChannel(){
+    return ASCIIChannelRead(channel);
+}
+
+string SHA1HashString(string s){
+    sha1_hasher_t hasher;
+    sha1_hasher_hash_t hash;
+
+    ASCIIChannelSetup(channel, s);
+    SHA1HasherHashData(hasher, ReadChannel, ASCIIChannelLength(channel));
+    SHA1HasherHash(hasher, hash);
+    // Convert to hex
+    return IntToHex(hash[0]) + IntToHex(hash[1]) + IntToHex(hash[2]) + IntToHex(hash[3]) + IntToHex(hash[4]);
+}
