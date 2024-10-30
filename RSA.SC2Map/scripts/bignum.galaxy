@@ -1,4 +1,4 @@
-//===============
+//=============== 
 // bignum.galaxy 
 //===============
 
@@ -15,16 +15,16 @@ typedef int[MAX_DIGITS] BigNumDigits_t;
 
 // Represents a large number with arbitrary precision.
 struct BigNum_t {
-    BigNumDigits_t digits;                    // - `digits`: An array of integers (BigNumDigits_t) that holds the individual digits of the large number.
-    int length;                               // - `length`: An integer representing the number of significant digits currently in use.
+    BigNumDigits_t digits;                    // - digits: An array of integers (BigNumDigits_t) that holds the individual digits of the large number.
+    int length;                               // - length: An integer representing the number of significant digits currently in use.
 };
 
 // Returns 1 if num1 > num2, -1 if num1 < num2, or 0 if they are equal
 int BigNumCompare(structref<BigNum_t> num1, structref<BigNum_t> num2);
-// *Not used. Returns true if the subtraction is successful (num1 >= num2), otherwise false
-bool BigNumSubtract(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result);
 // Subtracts num2 from num1
-void BigNumSubtract2(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result);
+void BigNumSubtract(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result);
+// Adds num1 & num2
+void BigNumAdd(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result);
 // Multiplies num1 and num2, then reduces the product modulus
 void BigNumModMultiply(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> modulus, structref<BigNum_t> result);
 // Multiplies 'num' by an int 'multiplier'
@@ -33,8 +33,10 @@ void BigNumMultiplyByInt(structref<BigNum_t> num, int multiplier, structref<BigN
 void BigNumMod(structref<BigNum_t> num, structref<BigNum_t> mod, structref<BigNum_t> remainder);
 // Performs a right bit shift >> on 'num', effectively dividing it by the base
 void BigNumRightShift(structref<BigNum_t> num);
-// Computes (base^exp) mod
+// Default modular exponentiation function (base^exp) mod 
 void BigNumModExp(structref<BigNum_t> base, structref<BigNum_t> exp, structref<BigNum_t> mod, structref<BigNum_t> result);
+// Optimized modular exponentiation for specific exp
+void BigNumModExp2(structref<BigNum_t> base, structref<BigNum_t> mod, structref<BigNum_t> result);
 // Converts a numeric string to array
 void StringToBigNum(string numStr, structref<BigNum_t> num);
 // Converts array into numeric string
@@ -72,50 +74,37 @@ int BigNumCompare(structref<BigNum_t> num1, structref<BigNum_t> num2) {
     return 0;  // Numbers are equal
 }
 
-bool BigNumSubtract(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result) {
-    int borrow;
+void BigNumAdd(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result) {
     int i;
-    int digit1;
-    int digit2;
-    int diff;
+    int carry = 0;
+    int sum;
+    int maxLength = MaxI(num1.length, num2.length);
+    int base = BASE;
 
-    // Check if num1 >= num2
-    if (BigNumCompare(num1, num2) < 0) {
-        // num1 < num2, cannot subtract
-        return false;
-    }
-
-    borrow = 0;
-
-    for (i = 0; i < num1.length; i += 1) {
-        // Get digits, default to 0 if index exceeds length
-        digit1 = num1.digits[i];
+    for (i = 0; i < maxLength; i += 1) {
+        sum = carry;
+        if (i < num1.length) {
+            sum += num1.digits[i];
+        }
         if (i < num2.length) {
-            digit2 = num2.digits[i];
-        } else {
-            digit2 = 0;
+            sum += num2.digits[i];
         }
 
-        // Calculate the difference and borrow
-        diff = digit1 - digit2 - borrow;
-        if (diff < 0) {
-            diff += BASE;
-            borrow = 1;
-        } else {
-            borrow = 0;
-        }
-
-        // Store the difference in the result
-        result.digits[i] = diff;
+        result.digits[i] = sum % base;
+        carry = sum / base;
     }
 
-    result.length = num1.length;
-    TrimLeadingZeros(result);
+    result.length = maxLength;
 
-    return true;
+    if (carry > 0) {
+        result.digits[result.length] = carry;
+        result.length += 1;
+    }
+    
+    TrimLeadingZeros(result);
 }
 
-void BigNumSubtract2(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result) {
+void BigNumSubtract(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result) {
     int i;
     int diff;
     int borrow = 0;
@@ -239,8 +228,9 @@ void BigNumMod(structref<BigNum_t> num, structref<BigNum_t> mod, structref<BigNu
                 // Combine the leading two digits for better estimation
                 dividendLeadingDigit = remainder.digits[remainder.length - 1] * base + remainder.digits[remainder.length - 2];
             }
-
+            // Estimate the quotient
             estimatedQuotient = dividendLeadingDigit / (divisorLeadingDigit + 1);
+            // Bounds for the quotient
             if (estimatedQuotient <= 0) {
                 estimatedQuotient = 1;
             } else if (estimatedQuotient >= base) {
@@ -253,11 +243,11 @@ void BigNumMod(structref<BigNum_t> num, structref<BigNum_t> mod, structref<BigNu
                 estimatedQuotient -= 1;
                 BigNumMultiplyByInt(mod, estimatedQuotient, tempProduct);
             }
-
-            BigNumSubtract2(remainder, tempProduct, remainder);           
+            
+            BigNumSubtract(remainder, tempProduct, remainder);           
             // Continue subtracting modulus until remainder < modulus
             while (BigNumCompare(remainder, mod) >= 0) {
-                BigNumSubtract2(remainder, mod, remainder);
+                BigNumSubtract(remainder, mod, remainder);
             }
         }
     }
@@ -302,6 +292,27 @@ void BigNumModExp(structref<BigNum_t> base, structref<BigNum_t> exp, structref<B
         // expCopy = expCopy >> 1
         BigNumRightShift(expCopy);
     }
+}
+
+void BigNumModExp2(structref<BigNum_t> base, structref<BigNum_t> mod, structref<BigNum_t> result) {
+    BigNum_t baseModN;
+    BigNum_t pow2;
+    int max = 16;
+    int i;
+
+    if (MAX_DIGITS == 512) { max = 4; }
+
+    // baseModN = base % mod
+    BigNumMod(base, mod, baseModN);
+    // pow2 = baseModN
+    BigNumCopy(baseModN, pow2);
+    // base^(2^max) mod mod by performing (int max) squarings
+    for (i = 0; i < max; i += 1) {
+        // pow2 = (pow2 * pow2) % mod
+        BigNumModMultiply(pow2, pow2, mod, pow2);
+    }
+    // (pow2 * baseModN) % mod
+    BigNumModMultiply(pow2, baseModN, mod, result);
 }
 
 void StringToBigNum(string numStr, structref<BigNum_t> num) {
@@ -386,11 +397,12 @@ void LogBigNum(string msg, structref<BigNum_t> result) {
     TriggerDebugOutput(1, StringToText(msg + BigNumToString(result)), true);
 }
 
+
 //==========
 // Tests
 //==========
 
-void RSA1024() {
+void RSA1024() { // 650ms to decrypt
     BigNum_t base;
     BigNum_t exp;
     BigNum_t mod;
@@ -406,19 +418,44 @@ void RSA1024() {
     LogBigNum("RSA-1024 Decrypted Hash: ", result); // Expected result: 1119272548434844720456232458901450138120910650604
 }
 
-void RSA2048() { // MAX_DIGITS = 512;
+void RSA1024_Optimized() { // 605-615ms
+    BigNum_t base;
+    BigNum_t mod;
+    BigNum_t result;
+    string PUBLIC_KEY_N = "94713646782161394424368677721623842061248824764984484847757767245852714476645733680834389843827143071194293334902742549088196248690771091243883977386632753968933100970815411253115341265168888321760119043238699891567437533442721961615367959839303517618838705644004588944464591742421671310902236250706676534441";
+    string ENCRYPTED_MESSAGE = "16003675996797057933684426177525959634861458176631048578592691912412186942856760010240215672588330250162750851913634890015356521643640872020312523914366633833331331323898246994999902660750352343736393309025469295114416832677694038306597490800644233102797784377436193912374962448381071364728935440792505685660";
+    
+    StringToBigNum(ENCRYPTED_MESSAGE, base);
+    StringToBigNum(PUBLIC_KEY_N, mod);
+    BigNumModExp2(base, mod, result);
+    LogBigNum("RSA-1024 Decrypted Hash: ", result); // Expected result: 1119272548434844720456232458901450138120910650604
+}
+
+void RSA2048() { // MAX_DIGITS = 512;  // 1340ms
     BigNum_t base;
     BigNum_t exp;
     BigNum_t mod;
     BigNum_t result;
-    string PUBLIC_KEY_N = "13770675079596525805417117289413168428659833509993637395170344230544960140169521840574240264712986851436153139216925906501661646977934807807752817717451087845905353589001263494422314660116564455049670803172565213776722235102725393525361791625642507664674130444090450411387555331394163189495830466976645453613427808576916014531250410251382224626387934722835464656187534680376792978452761021775397841459588714493694203872678764019148047163026966820209754375145822930914739870601275341926622543746465013494699575762841650718969576341280839133744736263053807805531139217352141461576568375951086626918511454325635137472807";
-    string PUBLIC_KEY_E = "65537";
-    string ENCRYPTED_MESSAGE = "636662881531453643910316175479139585170037352058367375021202685247963755261974809604401498497503054844310235645015411675464294256510491280583508995586659798953038709970296263174024229194004371297899330773033581864980740003227255565055802714679679340915389391905514046703915469638835903814949632522439640769865461351263828746522688865932104203643172033294636791512430753516326838779867626283700198185814165061629907612415081710244725303156642624371398321079549163496411746766570391803454856842296810708485085181387816595612983207588677556877673247432537133977590164685264343054374223177237044077872864736021627721091";
+    string PUBLIC_KEY_N = "14890711583427928485903975478681943851062060059514520110928850773563297790835867027664388368444547815078724875650910654407250799597572462010895313363739292662111985986203281897656597027532152595789392219630120966274254002615761708354475058348159711849956814359419947266173627061627314080042304362086790126305625843904412463423769226123504219500561711780138644300746159737947942565847775904740372217628917387541908027880920068170403218644247419519798643690363081572127857213916175983913254712406647369298582011386249863286796881022441971674202954917403284862138111300082818305545511638266939612647702138222907280480513";
+    string PUBLIC_KEY_E = "17";
+    string ENCRYPTED_MESSAGE = "14561677020181408877622220678764798857868517881393349940132232457640628197181181284720420322763186331201983070994824843766072127374240041657959702905431615538605686283073687210036113551630375081754192156499379238322527055408004799135588099313905398871823696402449769315062254805943258093246733712309644294376156968110126727914664585733069395220774204504289587377872711689087473052809915363122272409270477649888039421380298513255958940582761137836867858463597103979281355124779727020588844549373010192219536452040885650679651801231304920755430616434969578871503713363389230452026899639679318302443594174318954343774908";
     
     StringToBigNum(ENCRYPTED_MESSAGE, base);
     StringToBigNum(PUBLIC_KEY_E, exp);
     StringToBigNum(PUBLIC_KEY_N, mod);
     BigNumModExp(base, exp, mod, result);
+    LogBigNum("RSA-2048 Decrypted Hash: ", result); // Expected result: 443119762360062732707690290811963905379606208197
+}
+
+void RSA2048_Optimized() { // MAX_DIGITS = 512;  // 1110ms
+    BigNum_t base;
+    BigNum_t mod;
+    BigNum_t result;
+    string PUBLIC_KEY_N = "14890711583427928485903975478681943851062060059514520110928850773563297790835867027664388368444547815078724875650910654407250799597572462010895313363739292662111985986203281897656597027532152595789392219630120966274254002615761708354475058348159711849956814359419947266173627061627314080042304362086790126305625843904412463423769226123504219500561711780138644300746159737947942565847775904740372217628917387541908027880920068170403218644247419519798643690363081572127857213916175983913254712406647369298582011386249863286796881022441971674202954917403284862138111300082818305545511638266939612647702138222907280480513";
+    string ENCRYPTED_MESSAGE = "14561677020181408877622220678764798857868517881393349940132232457640628197181181284720420322763186331201983070994824843766072127374240041657959702905431615538605686283073687210036113551630375081754192156499379238322527055408004799135588099313905398871823696402449769315062254805943258093246733712309644294376156968110126727914664585733069395220774204504289587377872711689087473052809915363122272409270477649888039421380298513255958940582761137836867858463597103979281355124779727020588844549373010192219536452040885650679651801231304920755430616434969578871503713363389230452026899639679318302443594174318954343774908";
+    StringToBigNum(ENCRYPTED_MESSAGE, base);
+    StringToBigNum(PUBLIC_KEY_N, mod);
+    BigNumModExp2(base, mod, result);
     LogBigNum("RSA-2048 Decrypted Hash: ", result); // Expected result: 443119762360062732707690290811963905379606208197
 }
 
@@ -431,6 +468,23 @@ void SHA1(){
 }
 
 void Base64() {
-    TriggerDebugOutput(1, StringToText(EncodeBase64("Starcraft II")), true); // Expected result: U3RhcmNyYWZ0IElJ
-    TriggerDebugOutput(1, StringToText(DecodeBase64("U3RhcmNyYWZ0IElJ")), true); // Expected result: Starcraft II
+    string encoded = EncodeBase64("Starcraft II");
+    string decoded = DecodeBase64(encoded);
+
+    TriggerDebugOutput(1, StringToText(encoded), true); // Expected result: U3RhcmNyYWZ0IElJ
+    TriggerDebugOutput(1, StringToText(decoded), true); // Expected result: Starcraft II
+}
+
+void TestSmallNumbers() {
+    BigNum_t base;
+    BigNum_t exp;
+    BigNum_t mod;
+    BigNum_t result;
+
+    StringToBigNum("4", base);
+    StringToBigNum("13", exp);
+    StringToBigNum("497", mod);
+
+    BigNumModExp(base, exp, mod, result);
+    LogBigNum("Result: ", result); // Expected: 445
 }

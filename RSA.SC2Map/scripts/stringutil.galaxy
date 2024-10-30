@@ -92,7 +92,7 @@ string StringAdd(string num1, string num2) {
 }
 
 string StringMultiply(string num1, string num2) {
-    int[1024] maxDigits;
+    int[2048] maxDigits;
     int len1 = StringLength(num1);
     int len2 = StringLength(num2);
     int maxLen = len1 + len2;

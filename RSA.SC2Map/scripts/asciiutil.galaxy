@@ -5,6 +5,7 @@
 // Provides access to a number of useful ASCII based functions conversion functions.
 
 string[16] ASCII_UTIL_HEXMAP;
+string[16] ASCII_UTIL_HEX_BINARYMAP;
 const string ASCII_UTIL_ASCIIMAP = "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2A\x2B\x2C\x2D\x2E\x2F\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3A\x3B\x3C\x3D\x3E\x3F\x40\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4A\x4B\x4C\x4D\x4E\x4F\x50\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5A\x5B\x5C\x5D\x5E\x5F\x60\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6A\x6B\x6C\x6D\x6E\x6F\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7A\x7B\x7C\x7D\x7E\x7F\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8A\x8B\x8C\x8D\x8E\x8F\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9A\x9B\x9C\x9D\x9E\x9F\xA0\xA1\xA2\xA3\xA4\xA5\xA6\xA7\xA8\xA9\xAA\xAB\xAC\xAD\xAE\xAF\xB0\xB1\xB2\xB3\xB4\xB5\xB6\xB7\xB8\xB9\xBA\xBB\xBC\xBD\xBE\xBF\xC0\xC1\xC2\xC3\xC4\xC5\xC6\xC7\xC8\xC9\xCA\xCB\xCC\xCD\xCE\xCF\xD0\xD1\xD2\xD3\xD4\xD5\xD6\xD7\xD8\xD9\xDA\xDB\xDC\xDD\xDE\xDF\xE0\xE1\xE2\xE3\xE4\xE5\xE6\xE7\xE8\xE9\xEA\xEB\xEC\xED\xEE\xEF\xF0\xF1\xF2\xF3\xF4\xF5\xF6\xF7\xF8\xF9\xFA\xFB\xFC\xFD\xFE\xFF";
 const string ASCII_UTIL_BASE64MAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -26,7 +27,17 @@ static int HexToInt(string s);
 static int HexByteToInt(string in);
 // Converts hexadecimal string to decimal
 string HexToDecimal(string s);
-// Encodes string to base64
+// Converts hexadecimal text back to original text
+string HexToText(string hex);
+// Converts a binary string to its integer value
+int BinaryToInt(string s) ;
+// Converts an integer to an 8-bit binary string
+string IntToBinary(int value);
+// Converts a hexadecimal string to binary
+string HexToBinary(string s);
+// Converts a binary string to hexadecimal
+string BinaryToHex(string s);
+// Encodes text to base64
 string EncodeBase64(string input);
 // Decodes base64 string back to its original text
 string DecodeBase64(string base64);
@@ -40,6 +51,24 @@ void InitHexMap(){
         i = j;
         j+= 1;
     }
+
+    // Hex to Binary Mapping
+    ASCII_UTIL_HEX_BINARYMAP[0]  = "0000";
+    ASCII_UTIL_HEX_BINARYMAP[1]  = "0001";
+    ASCII_UTIL_HEX_BINARYMAP[2]  = "0010";
+    ASCII_UTIL_HEX_BINARYMAP[3]  = "0011";
+    ASCII_UTIL_HEX_BINARYMAP[4]  = "0100";
+    ASCII_UTIL_HEX_BINARYMAP[5]  = "0101";
+    ASCII_UTIL_HEX_BINARYMAP[6]  = "0110";
+    ASCII_UTIL_HEX_BINARYMAP[7]  = "0111";
+    ASCII_UTIL_HEX_BINARYMAP[8]  = "1000";
+    ASCII_UTIL_HEX_BINARYMAP[9]  = "1001";
+    ASCII_UTIL_HEX_BINARYMAP[10] = "1010";
+    ASCII_UTIL_HEX_BINARYMAP[11] = "1011";
+    ASCII_UTIL_HEX_BINARYMAP[12] = "1100";
+    ASCII_UTIL_HEX_BINARYMAP[13] = "1101";
+    ASCII_UTIL_HEX_BINARYMAP[14] = "1110";
+    ASCII_UTIL_HEX_BINARYMAP[15] = "1111";
 }
 
 int ASCIIUtilStringToInt(string s, int off) {
@@ -80,19 +109,104 @@ static int HexByteToInt(string in) {
 }
 
 string HexToDecimal(string s) {
-    int length = StringLength(s);
+    int len = StringLength(s);
     int i;
     int byteValue;
     string result = "0";
     string byteString;
 
-    for (i = 0; i < length; i += 2) {
+    for (i = 0; i < len; i += 2) {
         byteString = StringSub(s, i + 1, i + 2);
         byteValue = HexByteToInt(byteString);
         result = StringAdd(StringMultiply(result, "256"), IntToString(byteValue));
     }
 
     return result;
+}
+
+string HexToText(string s) {
+    int len = StringLength(s);
+    string byteHex;
+    int byteValue;
+    string result = "";
+    int i;
+
+    for (i = 0; i < len; i += 2) {
+        byteHex = StringSub(s, i + 1, i + 2);
+        byteValue = HexByteToInt(byteHex);
+        result = result + ASCIIUtilIntToString(byteValue);
+    }
+
+    return result;
+}
+
+int BinaryToInt(string s) {
+    int len = StringLength(s);
+    int value = 0;
+    int i;
+
+    for (i = 0; i < len; i += 1) {
+        if (StringSub(s, i + 1, i + 1) == "1") {
+            value = value + (1 << (len - 1 - i));
+        }
+    }
+
+    return value;
+}
+
+string IntToBinary(int value) {
+    string binary = "";
+    int i;
+    int bitValue;
+
+    for (i = 7; i >= 0; i -= 1) {
+        bitValue = value / (1 << i);
+        if (bitValue == 1) {
+            binary = binary + "1";
+            value = value - (1 << i);
+        } else {
+            binary = binary + "0";
+        }
+    }
+
+    return binary;
+}
+
+string HexToBinary(string s) {
+    int len = StringLength(s);
+    string bin = "";
+    string hex;
+    int i;
+    int hexValue;
+        
+    for (i = 0; i < len; i += 1) {
+        hex = StringSub(s, i + 1, i + 1);
+        hexValue = HexToInt(hex);
+        bin = bin + ASCII_UTIL_HEX_BINARYMAP[hexValue];
+    }
+    
+    return bin;
+}
+
+string BinaryToHex(string s) {
+    int len = StringLength(s);
+    string hex = "";
+    int i; 
+    int hexValue;
+    string bits;
+
+    for (i = 0; i < len; i += 4) {
+        if (i + 4 <= len) {
+            bits = StringSub(s, i + 1, i + 4);
+        } else {
+            bits = StringSub(s, i + 1, len) + StringRepeat("0", 4 - StringLength(StringSub(s, i + 1, len)));
+        }
+
+        hexValue = BinaryToInt(bits);
+        hex = hex + ASCII_UTIL_HEXMAP[hexValue];
+    }
+
+    return hex;
 }
 
 string EncodeBase64(string input) {    

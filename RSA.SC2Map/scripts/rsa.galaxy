@@ -3,12 +3,11 @@
 //============
 
 static const string PUBLIC_KEY_N = "59836062111949931328673805256869548387146331768102044697578036747887397268120237771317709155860848000706492961873626726687210011204125928426593546499955489811398801974213454697055165060446292179370626663955575076170510122662473260994987774010519459409484210665466339087163839460298360324679580817965957358639";
-static const string PUBLIC_KEY_E = "65537";
 
 // Generates a hash of the original message
 static string MessageHash(string msg, int player);
 // Decrypts RSA hash
-static string RSADecrypt(string msg, structref<BigNum_t> base, structref<BigNum_t> exp, structref<BigNum_t> mod, structref<BigNum_t> result);
+static string RSADecrypt(string msg, structref<BigNum_t> base, structref<BigNum_t> mod, structref<BigNum_t> result);
 // Verifies the RSA signature
 bool RSAVerifySignature(string msg, int player);
 
@@ -18,24 +17,22 @@ static string MessageHash(string msg, int player) {
     return HexToDecimal(SHA1HashString(SplitStringAt(msg, "|", 1) + "|" + acc)); // Return msg hash in decimal format
 }
 
-static string RSADecrypt(string msg, structref<BigNum_t> base, structref<BigNum_t> exp, structref<BigNum_t> mod, structref<BigNum_t> result) {
+static string RSADecrypt(string msg, structref<BigNum_t> base, structref<BigNum_t> mod, structref<BigNum_t> result) {
     StringToBigNum(SplitStringAt(msg, "|", 3), base); // convert encrypted hash to array
-    StringToBigNum(PUBLIC_KEY_E, exp); // convert public key exponent to array
     StringToBigNum(PUBLIC_KEY_N, mod); // convert public key modulus to array
-    BigNumModExp(base, exp, mod, result); // function for decrypting
+    BigNumModExp2(base, mod, result); // function for decrypting. Using optimized version for 1028 bit
 
     return BigNumToString(result); // convert decrypted hash to string
 }
 
 bool RSAVerifySignature(string msg, int player) {
     BigNum_t base;
-    BigNum_t exp;
     BigNum_t mod;
     BigNum_t result;
 
     string decoded = DecodeBase64(msg); // decode chat message
     string messageHash = MessageHash(decoded, player); // hash original message
-    string decryptedHash = RSADecrypt(decoded, base, exp, mod, result); // decrypted rsa hash
+    string decryptedHash = RSADecrypt(decoded, base, mod, result); // decrypted rsa hash
 
     return StringEqual(decryptedHash, messageHash, true); // compare decrypted hash & original msg hash
 }
