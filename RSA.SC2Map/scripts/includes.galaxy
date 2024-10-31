@@ -11,5 +11,5 @@ include "scripts/rsa.galaxy"
 
 void MainInit(){
     InitHexMap();
-    DecryptMessageInit();
+    DecryptSignatureInit();
 }

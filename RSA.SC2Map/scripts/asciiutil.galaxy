@@ -29,13 +29,15 @@ static int HexByteToInt(string in);
 string HexToDecimal(string s);
 // Converts hexadecimal text back to original text
 string HexToText(string hex);
-// Converts a binary string to its integer value
-int BinaryToInt(string s) ;
-// Converts an integer to an 8-bit binary string
-string IntToBinary(int value);
-// Converts a hexadecimal string to binary
+// Converts binary string to its integer value
+static int BinaryToInt(string s);
+// Converts binary to text
+string BinaryToString(string binary);
+// Converts text to binary
+string StringToBinary(string s);
+// Converts hexadecimal string to binary
 string HexToBinary(string s);
-// Converts a binary string to hexadecimal
+// Converts binary string to hexadecimal
 string BinaryToHex(string s);
 // Encodes text to base64
 string EncodeBase64(string input);
@@ -140,7 +142,7 @@ string HexToText(string s) {
     return result;
 }
 
-int BinaryToInt(string s) {
+static int BinaryToInt(string s) {
     int len = StringLength(s);
     int value = 0;
     int i;
@@ -154,18 +156,44 @@ int BinaryToInt(string s) {
     return value;
 }
 
-string IntToBinary(int value) {
+string BinaryToString(string binary) {
+    int len = StringLength(binary);
+    string result = "";
+    int i;
+    int j;
+    int value;
+
+    for (i = 0; i < len; i += 8) {
+        value = 0;
+
+        for (j = 0; j < 8; j += 1) {
+            if (StringSub(binary, i + j + 1, i + j + 1) == "1") {
+                value = value + (1 << (7 - j));
+            }
+        }
+
+        result = result + ASCIIUtilIntToString(value);
+    }
+
+    return result;
+}
+
+string StringToBinary(string s) {
+    int len = StringLength(s);
     string binary = "";
     int i;
-    int bitValue;
+    int j;
+    int value;
 
-    for (i = 7; i >= 0; i -= 1) {
-        bitValue = value / (1 << i);
-        if (bitValue == 1) {
-            binary = binary + "1";
-            value = value - (1 << i);
-        } else {
-            binary = binary + "0";
+    for (i = 0; i < len; i += 1) {
+        value = ASCIIUtilStringToInt(s, i + 1);
+
+        for (j = 7; j >= 0; j -= 1) {
+            if ((value & (1 << j)) != 0) {
+                binary = binary + "1";
+            } else {
+                binary = binary + "0";
+            }
         }
     }
 

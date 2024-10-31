@@ -47,6 +47,21 @@ def save_keys_to_ini(n, e, d, ini_path):
 def sign_message_hash(message_hash_int, d, n):
     return pow(message_hash_int, d, n)
 
+# Function to verify signature
+def verify_signature(signature, e, n, padded_msg):
+    decrypted_hash_int = pow(signature, e, n)  # Decrypt with public key
+    return decrypted_hash_int == padded_msg
+
+# Function to generate a random salt for PSS
+def generate_salt(length=8):
+    return os.urandom(length)
+
+# Function to create PSS padding for a message hash
+def add_pss_padding(message_hash, salt, padded_len):
+    padding_len = padded_len - len(message_hash) - len(salt) - 2
+    padding = b'\x00' * padding_len + b'\x01'
+    return padding + salt + message_hash
+
 # Main function for RSA logic
 def main():
     ini_path = get_file_path('keys.ini', 'RSA key file')
@@ -83,32 +98,44 @@ def main():
     message = sanitize_input("Write message: ")
     player_id = sanitize_input("Enter Player handle: ")
 
+    # Default setting if player_id is empty
+    if not player_id.strip():
+        player_id = "SC2E-TEST-ACCOUNT"
+
+    key_size = n.bit_length()
+
     combined_message = f"{message}|{player_id}"
     sha1 = hashlib.sha1()
     sha1.update(combined_message.encode())
     message_hash = sha1.digest()
-    message_hash_int = int.from_bytes(message_hash, byteorder='big')
 
-
-    hash_hex_upper = message_hash.hex().upper()
-
-    signature = sign_message_hash(message_hash_int, d, n)
-
+    # Generate salt & padding for PSS
+    salt = generate_salt()
+    padded_len = 128 if len(bin(n)) <= 1024 else 256  # Key size bytes - SHA-1 bytes(20) - Salt bytes(20) - 2
+    padded_message = add_pss_padding(message_hash, salt, padded_len=padded_len)
+    padded_message_int = int.from_bytes(padded_message, byteorder='big')
+    signature = sign_message_hash(padded_message_int, d, n)
+    is_valid = verify_signature(signature,e,n,padded_message_int)
+    
     # Format and display the info using `rich`
     table = Table(title="Overview", 
                   title_style="bold magenta",
                   show_lines=True)
 
-    table.add_column("Field", style="cyan", no_wrap=True)
+    table.add_column("Field", style="cyan", vertical="middle", no_wrap=True)
     table.add_column("Value", style="white", no_wrap=False, overflow="fold")
 
+    table.add_row("Key Size", f"{key_size} bit")
     table.add_row("Public Key (n)", str(n))
     table.add_row("Message", f"{message}")
     table.add_row("Player ID", f"{player_id}")
-    table.add_row("Message Hash (SHA-1)", f"{hash_hex_upper}")
+    table.add_row("Message Hash (SHA-1)", message_hash.hex().upper())
+    table.add_row("Salt", salt.hex())
+    table.add_row("PSS Padded Message", f"{padded_message_int}")
     table.add_row("Signature", str(signature))
+    table.add_row("Signature Valid", f"{is_valid}")
 
-    combined_string = f"{message}|{player_id}|{signature}"
+    combined_string = f"{message}|{salt.hex()}|{signature}"
     final_base64 = base64.b64encode(combined_string.encode('utf-8')).decode('utf-8')
 
     # Create panel & left align
