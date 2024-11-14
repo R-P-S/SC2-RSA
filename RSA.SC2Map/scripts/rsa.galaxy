@@ -1,0 +1,96 @@
+//============
+// rsa.galaxy 
+//============
+
+static const string PUBLIC_KEY = "mDA0uFmyZQiKfyuBEgpnl+2ikWKGue8gNUcN69mPeoMFb0OQgFJEb1evpFrHg/QI30SzFG9D2jEcNBHDlDV4A/Z2coqXbapCq4ZBMtoz3SacH6Bk2Uj7caXayoLfEOk5w7STZ4JCeO00pKOU2QFkQjpYoyfqNC0UU/OnLToEwHk=";
+
+// Helper function to calculate padding length
+static int GetPaddingLength(int msgHashLen, int saltLen) {
+    int paddedLen = 128 * KEY_SIZE_MULTIPLIER; // 128 for 1024-bit keys; 256 for 2048-bit keys
+    // 2 bytes for prefix + 1 byte for seperator + 1 byte to total length
+    return paddedLen - (2 + 1 + msgHashLen + saltLen) + 1;
+}
+// Generates PKCS#1 padding for a message hash
+static string GeneratePKCSPadding(string msg, int player, string key);
+// Decrypts the RSA signature using the public key
+static string RSADecryptSignature(string msg, structref<BigNum_t> base, structref<BigNum_t> mod, structref<BigNum_t> result);
+// Verifies the decrypted RSA signature against the expected hash
+bool VerifyRSASignature(string msg, int player, string key);
+
+static string GeneratePKCSPadding(string msg, int player, string key) {
+    string acc = PlayerHandle(player); // Get player handle
+    string msgContent = SplitStringAt(msg, "|", 1); // Extract original msg
+    string salt = SplitStringAt(msg, "|", 2); // Extract salt
+    string msgHash;
+    string padding;
+    string paddedMsg;
+    int paddingLen;
+
+    if( acc == "" ) { acc = "SC2E-TEST-ACCOUNT"; } // Default handle for offline editor testing
+    DataTableSetString(false, key, msgContent); // Store original message as callback
+    // Hash original message & player handle
+    msgHash = SHA1HashString(msgContent + "|" + acc);
+    // Get length of padding required to match the RSA block size & build padded message
+    paddingLen = GetPaddingLength(StringLength(msgHash) / 2, StringLength(salt) / 2);
+    padding = StringRepeat("FF", paddingLen);
+    paddedMsg = "00" + "01" + padding + "00" + salt + msgHash;
+
+    // Convert padded message
+    return HexToDecimal(paddedMsg);
+}
+
+static string RSADecryptSignature(string msg, structref<BigNum_t> base, structref<BigNum_t> mod, structref<BigNum_t> result) {
+    StringToBigNum(msg, base); // Convert encrypted signature to array
+    StringToBigNum(Base64ToDecimal(PUBLIC_KEY), mod); // Convert public key modulus to array
+    BigNumModExp2(base, mod, result); // Perform modular exponentiation to decrypt the signature
+
+    return BigNumToString(result); // convert the decrypted signature to string
+}
+
+bool VerifyRSASignature(string msg, int player, string key) {
+    BigNum_t base;
+    BigNum_t mod;
+    BigNum_t result;
+
+    // Split the signed message into message content and encrypted signature
+    string msgContent = SplitStringAt(msg, "|", 1);
+    string encryptedSignature = SplitStringAt(msg, "|", 2);
+    // Create the PKCS#1-padded message
+    string paddedMsg = GeneratePKCSPadding(DecodeBase64(msgContent), player, key);
+    // Decrypt the RSA signature
+    string decryptedSignature = RSADecryptSignature(Base64ToDecimal(encryptedSignature), base, mod, result);
+    // Verify if the decrypted signature matches the expected message hash
+    return StringEqual(decryptedSignature, paddedMsg, true); 
+}
+// Handles chat message event and verifies the RSA signature from the signed message
+bool gt_DecryptSignature (bool a, bool b) {
+    int player = EventPlayer();
+    string callBack;
+    string key = "msg_" + IntToString(player);
+    string signedMsg = StringWord(EventChatMessage(false), 2);
+
+    if (a) { if (signedMsg == "") { return false; } }
+
+    // Validate the RSA signature
+    if (VerifyRSASignature(signedMsg, player, key)) { 
+        UIDisplayMessage(PlayerGroupSingle(player), c_messageAreaDebug, StringToText("Signature Valid"));
+        // Get original message content and display callback
+        callBack = DataTableGetString(false, key);
+        UIDisplayMessage(PlayerGroupSingle(player), c_messageAreaDebug, StringToText("Message: " + callBack));
+        // Create units based on message content
+        CameraPan(1, RegionGetCenter(RegionPlayableMap()), 0.0, -1, 10.0, false); // Center player camera for test map
+        libNtve_gf_CreateUnitsWithDefaultFacing(StringToInt(StringWord(callBack, 2)), (StringWord(callBack, 1)), 0, player, CameraGetTarget(player));
+        // Clear callback
+        DataTableValueRemove(false, key);
+    } else { 
+        UIDisplayMessage(PlayerGroupSingle(player), c_messageAreaDebug, StringToText("Signature Invalid")); 
+    }
+
+   return true;   
+}
+// Initializes the chat message trigger for decrypting and verifying signatures
+void DecryptSignatureInit() {
+    TriggerAddEventChatMessage(TriggerCreate("gt_DecryptSignature"), c_playerAny, "-m", false);
+    // Signed signature for editor test
+    // -m TWFyaW5lIDV8Zjg5ODZkZTI0Njk4YTlmYw==|YsjQYVK6gP0DZvt3oMuxrg01eP1b4ap3qvxNUxO7YB5jeB75enJb4qVJ/cbPmnQWTshm3bAQaX2g/9/axyb6YmCALHOdXi7SUNFeK0ipKSPXP+0RuB+XbVWVLRVVJPcw+RgJnWYTmwi6CMV5bzY290MVWpt45tlHwolbg8AyDHc=
+}

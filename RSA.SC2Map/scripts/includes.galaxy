@@ -1,0 +1,15 @@
+//================
+// includes.galaxy 
+//================
+
+include "scripts/stringutil.galaxy"
+include "scripts/asciiutil.galaxy"
+include "scripts/asciichannel.galaxy"
+include "scripts/sha1.galaxy"
+include "scripts/bignum.galaxy"
+include "scripts/rsa.galaxy"
+
+void MainInit(){
+    InitHexMap();
+    DecryptSignatureInit();
+}

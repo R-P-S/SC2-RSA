@@ -1,0 +1,13 @@
+﻿CustomScript/Name/lib_0CA3603B_B92AAB2D=script
+FunctionDef/Name/lib_0CA3603B_BFC30250=Verify RSA Signature
+Library/Name/0CA3603B=RSA
+ParamDef/Name/lib_0CA3603B_3BBA84F1=player
+ParamDef/Name/lib_0CA3603B_40F5EA74=key
+ParamDef/Name/lib_0CA3603B_CB99D3D2=msg
+Trigger/Name/lib_0CA3603B_516D40B7=Decrypt Signature
+Variable/Name/lib_0CA3603B_4F4F1144=player
+Variable/Name/lib_0CA3603B_7AFB4F26=KEY_SIZE_MULTIPLIER
+Variable/Name/lib_0CA3603B_85E6E61C=PUBLIC_KEY
+Variable/Name/lib_0CA3603B_96CCACC0=callBack
+Variable/Name/lib_0CA3603B_B5126769=key
+Variable/Name/lib_0CA3603B_BB9B00A3=signedMsg

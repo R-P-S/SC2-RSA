@@ -1,0 +1,7 @@
+*pem
+*.pyc
+*.spec
+__pycache_/
+build/
+dist/
+.vscode/

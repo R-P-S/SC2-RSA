@@ -1,0 +1,397 @@
+//=============== 
+// bignum.galaxy 
+//===============
+
+// This library enables arbitrary-precision arithmetic (BigNum) to overcome the 32-bit integer limit of Galaxy Script. 
+// Supports operations required for decrypting RSA keys with 1024-bit and 2048-bit encryption, though 1024-bit is recommended.
+
+const int KEY_SIZE_MULTIPLIER = 1;                                      // Set to 1 for 1024-bit, 2 for 2048-bit
+static const int BASE = 1000;                                           // Digits range from 0 to 999
+static const int BASE_DIGITS = 3;                                       // Number of decimal digits
+static const int MAX_DIGITS = 256 * KEY_SIZE_MULTIPLIER;                // Maximum number of digits
+
+// Defines an array of integers to represent the digits of a large number.
+// Each element in the array represents a single digit, and the size of the array is determined by MAX_DIGITS.
+typedef int[MAX_DIGITS] BigNumDigits_t;
+
+// Represents a large number with arbitrary precision.
+struct BigNum_t {
+    BigNumDigits_t digits;                    // - digits: An array of integers (BigNumDigits_t) that holds the individual digits of the large number.
+    int length;                               // - length: An integer representing the number of significant digits currently in use.
+};
+
+// Compares two values 'num1' & 'num2' and returns 1 if 'num1' > 'num2', -1 if 'num1' < 'num2', or 0 if they are equal
+int BigNumCompare(structref<BigNum_t> num1, structref<BigNum_t> num2);
+// Subtracts two values 'num2' from 'num1'
+void BigNumSubtract(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result);
+// Adds two values 'num1' & 'num2'
+void BigNumAdd(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result);
+// Multiplies two values 'num1' & 'num2' then reduces the product modulo
+void BigNumModMultiply(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> modulus, structref<BigNum_t> result);
+// Multiplies 'num' by an integer multiplier
+void BigNumMultiplyByInt(structref<BigNum_t> num, int multiplier, structref<BigNum_t> result);
+// Computes the remainder (num mod modulus)
+void BigNumMod(structref<BigNum_t> num, structref<BigNum_t> mod, structref<BigNum_t> remainder);
+// Performs a right bit shift on 'num', effectively dividing it by the base (BASE), used in modular exponentiation
+void BigNumRightShift(structref<BigNum_t> num);
+// Performs modular exponentiation, calculating (base^exp) mod modulus
+void BigNumModExp(structref<BigNum_t> base, structref<BigNum_t> exp, structref<BigNum_t> mod, structref<BigNum_t> result);
+// Optimized modular exponentiation for specific exponentiation calculations, designed for efficiency with certain exponent sizes
+void BigNumModExp2(structref<BigNum_t> base, structref<BigNum_t> mod, structref<BigNum_t> result);
+// Converts a numeric string to an array
+void StringToBigNum(string numStr, structref<BigNum_t> num);
+// Converts an array back to a numeric string
+string BigNumToString(structref<BigNum_t> num);
+// Copies the value from 'src'to another 'dest', useful for operations requiring temporary storage
+void BigNumCopy(structref<BigNum_t> src, structref<BigNum_t> dest);
+// Returns true if 'num' is zero, otherwise false
+bool BigNumIsZero(structref<BigNum_t> num);
+// Returns true if 'num' is odd, otherwise false
+bool BigNumIsOdd(structref<BigNum_t> num);
+// Removes leading zeros from 'num' value by adjusting its length.
+void TrimLeadingZeros(structref<BigNum_t> num);
+// Debug logging
+void LogBigNum(string msg, structref<BigNum_t> result);
+
+int BigNumCompare(structref<BigNum_t> num1, structref<BigNum_t> num2) {
+    int i;
+    int len1 = num1.length;
+    int len2 = num2.length;
+    
+    if (len1 > len2) {
+        return 1;
+    } else if (len1 < len2) {
+        return -1;
+    }
+    // Lengths equal, find larger number
+    for (i = len1 - 1; i >= 0; i -= 1) {
+        if (num1.digits[i] > num2.digits[i]) {
+            return 1;
+        } else if (num1.digits[i] < num2.digits[i]) {
+            return -1;
+        }
+    }
+
+    return 0;  // Numbers are equal
+}
+
+void BigNumAdd(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result) {
+    int i;
+    int carry = 0;
+    int sum;
+    int maxLength = MaxI(num1.length, num2.length);
+    int base = BASE;
+
+    for (i = 0; i < maxLength; i += 1) {
+        sum = carry;
+        if (i < num1.length) {
+            sum += num1.digits[i];
+        }
+        if (i < num2.length) {
+            sum += num2.digits[i];
+        }
+
+        result.digits[i] = sum % base;
+        carry = sum / base;
+    }
+
+    result.length = maxLength;
+
+    if (carry > 0) {
+        result.digits[result.length] = carry;
+        result.length += 1;
+    }
+}
+
+void BigNumSubtract(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> result) {
+    int i;
+    int diff;
+    int borrow = 0;
+    int base = BASE;
+    int digit2;
+
+    for (i = 0; i < num1.length; i += 1) {
+        digit2 = 0;
+        // If the current index is within the bounds of num2, assign the digit
+        if (i < num2.length) {
+            digit2 = num2.digits[i];
+        }
+
+        diff = num1.digits[i] - digit2 - borrow;
+
+        // Handle borrow if needed
+        if (diff < 0) {
+            diff += base;
+            borrow = 1;
+        } else {
+            borrow = 0;
+        }
+
+        // Assign the result digit
+        result.digits[i] = diff;
+    }
+
+    result.length = num1.length;
+
+    TrimLeadingZeros(result);
+}
+
+
+void BigNumModMultiply(structref<BigNum_t> num1, structref<BigNum_t> num2, structref<BigNum_t> modulus, structref<BigNum_t> result) {
+    int i;
+    int j;
+    int carry;
+    int prod;
+    int index;
+    int modulusValue;
+    int num1Length = num1.length;
+    int num2Length = num2.length;
+    int base = BASE;
+
+    BigNum_t tempResult;
+    tempResult.length = num1.length + num2.length;
+
+    for (i = 0; i < num1Length; i += 1) {
+        carry = 0;
+        for (j = 0; j < num2Length; j += 1) {
+            index = i + j;
+
+            // product and sum with existing digit and carry
+            prod = num1.digits[i] * num2.digits[j] + tempResult.digits[index] + carry;
+
+            // Update digit and carry
+            tempResult.digits[index] = prod % base;
+            carry = prod / base;
+        }
+
+        tempResult.digits[i + num2Length] += carry;
+    }
+
+    TrimLeadingZeros(result);
+    BigNumMod(tempResult, modulus, result);
+}
+
+void BigNumMultiplyByInt(structref<BigNum_t> num, int multiplier, structref<BigNum_t> result) {
+    int i;
+    int prod;
+    int carry = 0;
+    int base = BASE;
+
+    for (i = 0; i < num.length; i += 1) {
+        prod = num.digits[i] * multiplier + carry;
+        result.digits[i] = prod % base;
+        carry = prod / base;
+    }
+
+    result.length = num.length;
+
+    if (carry > 0) {
+        result.digits[result.length] = carry;
+        result.length += 1;
+    }
+}
+
+void BigNumMod(structref<BigNum_t> num, structref<BigNum_t> mod, structref<BigNum_t> remainder) {
+    int i;
+    int j;
+    int estimatedQuotient;
+    int base = BASE;
+    int divisorLeadingDigit;
+    int dividendLeadingDigit;
+    BigNum_t tempProduct;
+
+    // Reset remainder
+    for (i = 0; i < mod.length + 1; i += 1) {
+        remainder.digits[i] = 0;
+    }
+    remainder.length = 1;
+
+    // Get the leading digit of the divisor
+    divisorLeadingDigit = mod.digits[mod.length - 1];
+
+    // Process each digit of the dividend from most to least significant
+    for (i = num.length - 1; i >= 0; i -= 1) {
+        // Shift remainder left by one digit (multiply by base)
+        for (j = remainder.length - 1; j >= 0; j -= 1) {
+            remainder.digits[j + 1] = remainder.digits[j];
+        }
+        remainder.digits[0] = num.digits[i];
+        remainder.length += 1;
+        TrimLeadingZeros(remainder);
+
+        // If remainder >= mod, perform subtraction
+        if (remainder.length > mod.length || (remainder.length == mod.length && BigNumCompare(remainder, mod) >= 0)) {
+            // Estimate quotient digit
+            dividendLeadingDigit = remainder.digits[remainder.length - 1];
+            if (remainder.length > mod.length) {
+                // Combine the leading two digits for better estimation
+                dividendLeadingDigit = remainder.digits[remainder.length - 1] * base + remainder.digits[remainder.length - 2];
+            }
+            // Estimate the quotient
+            estimatedQuotient = dividendLeadingDigit / (divisorLeadingDigit + 1);
+            // Bounds for the quotient
+            if (estimatedQuotient <= 0) {
+                estimatedQuotient = 1;
+            } else if (estimatedQuotient >= base) {
+                estimatedQuotient = base - 1;
+            }
+            // Multiply modulus by estimatedQuotient
+            BigNumMultiplyByInt(mod, estimatedQuotient, tempProduct);
+            // Adjust estimation if tempProduct > remainder
+            while (BigNumCompare(remainder, tempProduct) < 0 && estimatedQuotient > 1) {
+                estimatedQuotient -= 1;
+                BigNumMultiplyByInt(mod, estimatedQuotient, tempProduct);
+            }
+            
+            BigNumSubtract(remainder, tempProduct, remainder);           
+            // Continue subtracting modulus until remainder < modulus
+            while (BigNumCompare(remainder, mod) >= 0) {
+                BigNumSubtract(remainder, mod, remainder);
+            }
+        }
+    }
+}
+
+void BigNumRightShift(structref<BigNum_t> num) {
+    int i;
+    int carry;
+    int current;
+
+    for (i = num.length - 1; i >= 0; i -= 1) {
+        current = num.digits[i] + carry * BASE;
+        num.digits[i] = current / 2;
+        carry = current % 2;
+    }
+
+    TrimLeadingZeros(num);
+}
+
+void BigNumModExp(structref<BigNum_t> base, structref<BigNum_t> exp, structref<BigNum_t> mod, structref<BigNum_t> result) {
+    BigNum_t one;
+    BigNum_t expCopy;
+    BigNum_t tempBase;
+    one.length = 1;
+    one.digits[0] = 1;
+
+    // default result = 1
+    BigNumCopy(one, result);
+    // tempBase = base % mod
+    BigNumMod(base, mod, tempBase);
+    // expCopy = exp
+    BigNumCopy(exp, expCopy);
+    // While expCopy > 0
+    while (!BigNumIsZero(expCopy)) {
+        // If expCopy is odd
+        if (BigNumIsOdd(expCopy)) {
+            // result = (result * tempBase) % mod
+            BigNumModMultiply(result, tempBase, mod, result);
+        }
+        // tempBase = (tempBase * tempBase) % mod
+        BigNumModMultiply(tempBase, tempBase, mod, tempBase);
+        // expCopy = expCopy >> 1
+        BigNumRightShift(expCopy);
+    }
+}
+
+void BigNumModExp2(structref<BigNum_t> base, structref<BigNum_t> mod, structref<BigNum_t> result) {
+    BigNum_t baseModN;
+    BigNum_t pow2;
+    int max = 16;
+    int i;
+
+    if (KEY_SIZE_MULTIPLIER == 2) { max = 4; }
+
+    // baseModN = base % mod
+    BigNumMod(base, mod, baseModN);
+    // pow2 = baseModN
+    BigNumCopy(baseModN, pow2);
+    // base^(2^max) mod mod by performing (int max) squarings
+    for (i = 0; i < max; i += 1) {
+        // pow2 = (pow2 * pow2) % mod
+        BigNumModMultiply(pow2, pow2, mod, pow2);
+    }
+    // (pow2 * baseModN) % mod
+    BigNumModMultiply(pow2, baseModN, mod, result);
+}
+
+void StringToBigNum(string numStr, structref<BigNum_t> num) {
+    int index = 0;
+    int segmentLength;
+    string ch;
+    string segment;
+    int firstNonZero;
+    int i;
+    int k;
+    int len = StringLength(numStr);
+
+    i = len;
+    num.length = 0;
+
+    while (i > 0) {
+        segmentLength = MinI(BASE_DIGITS, i);
+        segment = "";
+
+        for (k = i - segmentLength + 1; k <= i; k += 1) {
+            ch = StringSub(numStr, k, k);
+            segment = segment + ch;
+        }
+
+        num.digits[index] = StringToInt(segment);
+        index += 1;
+        i -= segmentLength;
+    }
+
+    num.length = index;
+}
+
+string BigNumToString(structref<BigNum_t> num) {
+    string result = "";
+    string s;
+    int i;
+    int numDigits;
+    int leadingZeros;
+
+    for (i = num.length - 1; i >= 0; i -= 1) {
+        s = IntToString(num.digits[i]);
+
+        if (i != num.length - 1) {
+            numDigits = StringLength(s);
+            leadingZeros = BASE_DIGITS - numDigits;
+            s = StringRepeat("0", leadingZeros) + s;
+        }
+        result = result + s;
+    }
+
+    if (result == "") {
+        return "0";
+    } else {
+        return result;
+    }
+}
+
+void BigNumCopy(structref<BigNum_t> src, structref<BigNum_t> dest) {
+    int i;
+
+    dest.length = src.length;
+    for (i = 0; i < src.length; i += 1) {
+        dest.digits[i] = src.digits[i];
+    }
+}
+
+bool BigNumIsZero(structref<BigNum_t> num) {
+    return (num.length == 1 && num.digits[0] == 0);
+}
+
+bool BigNumIsOdd(structref<BigNum_t> num) {
+    return (num.digits[0] % 2) == 1;
+}
+
+void TrimLeadingZeros(structref<BigNum_t> num) {
+    while (num.length > 1 && num.digits[num.length - 1] == 0) {
+        num.length -= 1;
+    }
+}
+
+void LogBigNum(string msg, structref<BigNum_t> result) {
+    TriggerDebugOutput(1, StringToText(msg + BigNumToString(result)), true);
+}

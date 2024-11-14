@@ -1,0 +1,106 @@
+include "TriggerLibs/NativeLib"
+
+include "Lib0CA3603B_h"
+
+//--------------------------------------------------------------------------------------------------
+// Library: RSA
+//--------------------------------------------------------------------------------------------------
+// External Library Initialization
+void lib0CA3603B_InitLibraries () {
+    libNtve_InitVariables();
+}
+
+// Variable Initialization
+bool lib0CA3603B_InitVariables_completed = false;
+
+void lib0CA3603B_InitVariables () {
+    if (lib0CA3603B_InitVariables_completed) {
+        return;
+    }
+
+    lib0CA3603B_InitVariables_completed = true;
+
+}
+
+// Custom Script
+//--------------------------------------------------------------------------------------------------
+// Custom Script: script
+//--------------------------------------------------------------------------------------------------
+include "scripts/includes.galaxy"
+
+void lib0CA3603B_InitCustomScript () {
+    MainInit();
+}
+
+// Functions
+// Triggers
+//--------------------------------------------------------------------------------------------------
+// Trigger: Decrypt Signature
+//--------------------------------------------------------------------------------------------------
+bool lib0CA3603B_gt_DecryptSignature_Func (bool testConds, bool runActions) {
+    // Variable Declarations
+    int lv_player;
+    string lv_callBack;
+    string lv_key;
+    string lv_signedMsg;
+
+    // Automatic Variable Declarations
+    // Variable Initialization
+    lv_player = EventPlayer();
+    lv_callBack = "";
+    lv_key = ("msg_" + IntToString(lv_player));
+    lv_signedMsg = StringWord(EventChatMessage(false), 2);
+
+    // Conditions
+    if (testConds) {
+        if (!((lv_signedMsg != ""))) {
+            return false;
+        }
+    }
+
+    // Actions
+    if (!runActions) {
+        return true;
+    }
+
+    if ((VerifyRSASignature(lv_signedMsg, lv_player, lv_key) == true)) {
+        UIDisplayMessage(PlayerGroupSingle(lv_player), c_messageAreaDebug, StringExternal("Param/Value/lib_0CA3603B_35DB74EF"));
+        lv_callBack = DataTableGetString(false, lv_key);
+        UIDisplayMessage(PlayerGroupSingle(lv_player), c_messageAreaDebug, StringToText(("Message: " + lv_callBack)));
+        libNtve_gf_CreateUnitsWithDefaultFacing(StringToInt(StringWord(lv_callBack, 2)), (StringWord(lv_callBack, 1)), 0, lv_player, CameraGetTarget(lv_player));
+        DataTableValueRemove(false, "ogMsg");
+    }
+    else {
+        UIDisplayMessage(PlayerGroupSingle(lv_player), c_messageAreaDebug, StringExternal("Param/Value/lib_0CA3603B_3A032FAF"));
+    }
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------
+void lib0CA3603B_gt_DecryptSignature_Init () {
+    lib0CA3603B_gt_DecryptSignature = TriggerCreate("lib0CA3603B_gt_DecryptSignature_Func");
+    TriggerAddEventChatMessage(lib0CA3603B_gt_DecryptSignature, c_playerAny, "-m", false);
+}
+
+void lib0CA3603B_InitTriggers () {
+    lib0CA3603B_gt_DecryptSignature_Init();
+}
+
+//--------------------------------------------------------------------------------------------------
+// Library Initialization
+//--------------------------------------------------------------------------------------------------
+bool lib0CA3603B_InitLib_completed = false;
+
+void lib0CA3603B_InitLib () {
+    if (lib0CA3603B_InitLib_completed) {
+        return;
+    }
+
+    lib0CA3603B_InitLib_completed = true;
+
+    lib0CA3603B_InitLibraries();
+    lib0CA3603B_InitVariables();
+    lib0CA3603B_InitCustomScript();
+    lib0CA3603B_InitTriggers();
+}
+

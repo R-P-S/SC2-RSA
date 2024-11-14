@@ -1,0 +1,173 @@
+//===================
+// stringutil.galaxy 
+//===================
+
+// Returns the Nth segment from a string based on specified delimiter.
+string SplitStringAt(string input, string delimiter, int segmentIndex);
+// Returns a new string from input 's' repeated 'in' times
+string StringRepeat(string s, int in);
+// Returns sum of numeric strings num1 & num2
+string StringAdd(string num1, string num2);
+// Returns product of large numeric strings num1 & num2
+string StringMultiply(string num1, string num2);
+// Returns num * multiplier
+string StringMultiplyByInt(string num, int mult);
+// Appends byte value to string
+string AddByteToString(string num, int byteValue);
+
+string SplitStringAt(string s, string delimiter, int segmentIndex) {
+    int len = StringLength(s);
+    int currentSegment = 1;
+    string currentChar; 
+    string segment = ""; 
+    int i;
+
+    if (s == "" || segmentIndex < 1) {
+        return "";
+    }
+
+    for (i = 0; i < len; i += 1) {
+        currentChar = StringSub(s, i + 1, i + 1); 
+
+        if (StringEqual(currentChar, delimiter, true)) {
+            if (currentSegment == segmentIndex) {
+                return segment;
+            }
+            segment = ""; 
+            currentSegment += 1;
+        } else {
+            segment += currentChar; 
+        }
+    }
+
+    if (currentSegment == segmentIndex) {
+        return segment;
+    }
+
+    return "";
+}
+
+string StringRepeat(string s, int in) {
+    string ret = "";
+    int i = 0;
+
+    while (i < in) {
+        ret = ret + s;
+        i += 1;
+    }
+    
+    return ret;
+}
+
+string StringAdd(string num1, string num2) {
+    int len1 = StringLength(num1);
+    int len2 = StringLength(num2);
+    int maxLen = MaxI(len1,len2);
+    int carry;
+    int sum;
+    int digit1; 
+    int digit2;
+    int i;
+    string result = "";
+    
+    for (i = 0; i < maxLen; i += 1) {
+        digit1 = 0;
+        digit2 = 0;
+
+        if (i < len1) {
+            digit1 = StringToInt(StringSub(num1, len1 - i, len1 - i));
+        }
+        if (i < len2) {
+            digit2 = StringToInt(StringSub(num2, len2 - i, len2 - i));
+        }
+
+        sum = digit1 + digit2 + carry;
+        carry = sum / 10;
+        sum = sum % 10;
+
+        result = IntToString(sum) + result;
+    }
+
+    if (carry > 0) {
+        result = IntToString(carry) + result;
+    }
+
+    return result;
+}
+
+string StringMultiply(string num1, string num2) {
+    int[2048] maxDigits;
+    int len1 = StringLength(num1);
+    int len2 = StringLength(num2);
+    int maxLen = len1 + len2;
+    int digit1;
+    int digit2;
+    int position;
+    int prod;
+    int i;
+    int j;
+    string result = "";
+    bool leadingZero = true;
+   
+    for (i = len1; i > 0; i -= 1) {
+        digit1 = StringToInt(StringSub(num1, i, i));
+
+        for (j = len2; j > 0; j -= 1) {
+            digit2 = StringToInt(StringSub(num2, j, j));
+            position = i + j; 
+            prod = digit1 * digit2 + maxDigits[position];
+            maxDigits[position] = prod % 10;
+            maxDigits[position - 1] += prod / 10;
+        }
+    }
+
+    for (i = 0; i < maxLen; i += 1) {
+        if (maxDigits[i + 1] != 0 || !leadingZero) {
+            result = result + IntToString(maxDigits[i + 1]);
+            leadingZero = false;
+        }
+    }
+
+    if (result == "") {
+        result = "0";
+    }
+
+    return result;
+}
+
+string StringMultiplyByInt(string num, int mult) {
+    int len = StringLength(num);
+    string result = "";
+    int carry = 0;
+    int i;
+    int product;
+    int remainder;
+    int digit;
+
+    for (i = len; i > 0; i -= 1) {
+        digit = StringToInt(StringSub(num, i, i));
+        product = digit * mult + carry;
+        carry = product / 10;
+        remainder = product % 10;
+        result = IntToString(remainder) + result;
+    }
+
+    while (carry > 0) {
+        result = IntToString(carry % 10) + result;
+        carry = carry / 10;
+    }
+
+    if (result == "") {
+        result = "0";
+    }
+
+    return result;
+}
+
+string AddByteToString(string num, int byteValue) {
+    string temp;
+    temp = StringMultiplyByInt(num, 256);
+    temp = StringAdd(temp, IntToString(byteValue));
+
+    return temp;
+}

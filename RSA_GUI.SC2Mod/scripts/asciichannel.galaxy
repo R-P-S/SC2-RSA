@@ -1,0 +1,52 @@
+//====================
+// asciichannel.galaxy 
+//====================
+
+// Provides functionality to channel a string as a sequence of character numbers.
+// ASCII decoding is used so behaviour is unspecified for unusual characters.
+// For performance four characters are packed in an int going from LSB(Least Significant Byte/Bit) to MSB(Most Significant Byte/Bit).
+// Due to the inability to store global pointers, the channel must be staticly wrapped for use.
+
+// Represents a channel, providing persistent storage for channel state.
+struct ascii_channel_t{
+    // The string being decoded.
+    string buffer;
+    // The current position within the string.
+    int pos;
+};
+// Setup an ASCII channel using the string s as the buffer.
+void ASCIIChannelSetup(structref<ascii_channel_t> obj, string s);
+// Gets the length remaining of the channel in bytes (characters).
+int ASCIIChannelLength(structref<ascii_channel_t> obj);
+// Reads the next 4 characters from the channel. Null (0) is given for EoF characters.
+// Call this function in a wrapper with static obj link for dynamic channels.
+int ASCIIChannelRead(structref<ascii_channel_t> obj);
+
+void ASCIIChannelSetup(structref<ascii_channel_t> obj, string s){
+    obj.buffer = s;
+    obj.pos = 0;
+}
+
+int ASCIIChannelLength(structref<ascii_channel_t> obj){
+    return StringLength(obj.buffer) - obj.pos;
+}
+
+int ASCIIChannelRead(structref<ascii_channel_t> obj){
+    int end;
+    int shift;
+    int val;
+    // Determine how much to read.
+    end = obj.pos + 4;
+    if( end > StringLength(obj.buffer) ){ end = StringLength(obj.buffer); }
+    
+    shift = 0;
+    val = 0;
+    obj.pos+= 1;
+    for( ; obj.pos <= end ; obj.pos+= 1 ){
+        val|= ASCIIUtilStringToInt(obj.buffer, obj.pos) << shift;
+        shift+= 8;
+    }
+    obj.pos-= 1;
+    return val;
+}
+

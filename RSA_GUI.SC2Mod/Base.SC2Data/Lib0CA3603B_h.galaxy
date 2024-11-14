@@ -1,0 +1,17 @@
+include "TriggerLibs/natives"
+
+//--------------------------------------------------------------------------------------------------
+// Library: RSA
+//--------------------------------------------------------------------------------------------------
+// Constants
+const string lib0CA3603B_gv_pUBLIC_KEY = "mDA0uFmyZQiKfyuBEgpnl+2ikWKGue8gNUcN69mPeoMFb0OQgFJEb1evpFrHg/QI30SzFG9D2jEcNBHDlDV4A/Z2coqXbapCq4ZBMtoz3SacH6Bk2Uj7caXayoLfEOk5w7STZ4JCeO00pKOU2QFkQjpYoyfqNC0UU/OnLToEwHk=";
+const int lib0CA3603B_gv_kEY_SIZE_MULTIPLIER = 1;
+
+// Function Declarations
+
+// Trigger Declarations
+trigger lib0CA3603B_gt_DecryptSignature;
+
+// Library Initialization
+void lib0CA3603B_InitVariables ();
+

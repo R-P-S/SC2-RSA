@@ -1,0 +1,448 @@
+//=================
+// asciiutil.galaxy 
+//=================
+
+// Provides access to a number of useful ASCII based functions conversion functions.
+
+string[16] ASCII_UTIL_HEXMAP;
+string[16] ASCII_UTIL_HEX_BINARYMAP;
+const string ASCII_UTIL_ASCIIMAP = "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x20\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2A\x2B\x2C\x2D\x2E\x2F\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3A\x3B\x3C\x3D\x3E\x3F\x40\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4A\x4B\x4C\x4D\x4E\x4F\x50\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5A\x5B\x5C\x5D\x5E\x5F\x60\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6A\x6B\x6C\x6D\x6E\x6F\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7A\x7B\x7C\x7D\x7E\x7F\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8A\x8B\x8C\x8D\x8E\x8F\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9A\x9B\x9C\x9D\x9E\x9F\xA0\xA1\xA2\xA3\xA4\xA5\xA6\xA7\xA8\xA9\xAA\xAB\xAC\xAD\xAE\xAF\xB0\xB1\xB2\xB3\xB4\xB5\xB6\xB7\xB8\xB9\xBA\xBB\xBC\xBD\xBE\xBF\xC0\xC1\xC2\xC3\xC4\xC5\xC6\xC7\xC8\xC9\xCA\xCB\xCC\xCD\xCE\xCF\xD0\xD1\xD2\xD3\xD4\xD5\xD6\xD7\xD8\xD9\xDA\xDB\xDC\xDD\xDE\xDF\xE0\xE1\xE2\xE3\xE4\xE5\xE6\xE7\xE8\xE9\xEA\xEB\xEC\xED\xEE\xEF\xF0\xF1\xF2\xF3\xF4\xF5\xF6\xF7\xF8\xF9\xFA\xFB\xFC\xFD\xFE\xFF";
+const string ASCII_UTIL_BASE64MAP = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Converts a string character at offset off into an int
+int ASCIIUtilStringToInt(string s, int off);
+// Converts an integer value into the corresponding character from ascii map
+string ASCIIUtilIntToString(int in);
+// Converts a 6 bit int into 1 Base64 character
+string ASCIIUtilIntToBase64(int in);
+// Converts 1 Base64 characters at offset off into a 6 bit int
+int ASCIIUtilBase64ToInt(string s, int off);
+// Builds hex map
+void InitHexMap();
+// Converts integer into 8 hexadecimal characters.
+string IntToHex(int in);
+// Converts a hexadecimal character to its integer value.
+static int HexToInt(string s);
+// Converts a two-character hexadecimal string into its integer value.
+static int HexByteToInt(string in);
+// Converts hexadecimal string to decimal
+string HexToDecimal(string s);
+// Converts hexadecimal text back to original text
+string HexToText(string hex);
+// Converts binary string to its integer value
+static int BinaryToInt(string s);
+// Converts bit amount to binary
+static string IntToBinary(int value, int bits);
+// Converts binary to text
+string BinaryToString(string binary);
+// Converts text to binary
+string StringToBinary(string s);
+// Converts binary to numeric string
+static string BinaryToDecimal(string s);
+// Converts hexadecimal string to binary
+string HexToBinary(string s);
+// Converts binary string to hexadecimal
+string BinaryToHex(string s);
+// Encodes text to base64
+string EncodeBase64(string input);
+// Decodes base64 string back to its original text
+string DecodeBase64(string base64);
+// Decodes base64 string to binary
+static string Base64ToBinary(string s);
+// Converts base64 string back to decimal
+string Base64ToDecimal(string s);
+
+void InitHexMap(){
+    int i = 0;
+    int j = 1;
+   
+    while( i < 16 ){
+        ASCII_UTIL_HEXMAP[i] = StringSub("0123456789ABCDEF", j, j);
+        i = j;
+        j+= 1;
+    }
+
+    // Hex to Binary Mapping
+    ASCII_UTIL_HEX_BINARYMAP[0]  = "0000";
+    ASCII_UTIL_HEX_BINARYMAP[1]  = "0001";
+    ASCII_UTIL_HEX_BINARYMAP[2]  = "0010";
+    ASCII_UTIL_HEX_BINARYMAP[3]  = "0011";
+    ASCII_UTIL_HEX_BINARYMAP[4]  = "0100";
+    ASCII_UTIL_HEX_BINARYMAP[5]  = "0101";
+    ASCII_UTIL_HEX_BINARYMAP[6]  = "0110";
+    ASCII_UTIL_HEX_BINARYMAP[7]  = "0111";
+    ASCII_UTIL_HEX_BINARYMAP[8]  = "1000";
+    ASCII_UTIL_HEX_BINARYMAP[9]  = "1001";
+    ASCII_UTIL_HEX_BINARYMAP[10] = "1010";
+    ASCII_UTIL_HEX_BINARYMAP[11] = "1011";
+    ASCII_UTIL_HEX_BINARYMAP[12] = "1100";
+    ASCII_UTIL_HEX_BINARYMAP[13] = "1101";
+    ASCII_UTIL_HEX_BINARYMAP[14] = "1110";
+    ASCII_UTIL_HEX_BINARYMAP[15] = "1111";
+}
+
+int ASCIIUtilStringToInt(string s, int off) {
+    return StringFind(ASCII_UTIL_ASCIIMAP, StringSub(s, off, off), true);
+}
+string ASCIIUtilIntToString(int in) {  
+    return StringSub(ASCII_UTIL_ASCIIMAP, in, in);
+}
+string ASCIIUtilIntToBase64(int in) {
+    return StringSub(ASCII_UTIL_BASE64MAP, in + 1, in + 1);
+}
+int ASCIIUtilBase64ToInt(string s, int off) {
+    return StringFind(ASCII_UTIL_BASE64MAP, StringSub(s, off, off), true) - 1;
+}
+
+string IntToHex(int in){
+    return ASCII_UTIL_HEXMAP[(in >> 28) & 0xF] + ASCII_UTIL_HEXMAP[(in >> 24) & 0xF] + 
+        ASCII_UTIL_HEXMAP[(in >> 20) & 0xF] + ASCII_UTIL_HEXMAP[(in >> 16) & 0xF] + 
+        ASCII_UTIL_HEXMAP[(in >> 12) & 0xF] + ASCII_UTIL_HEXMAP[(in >> 8) & 0xF] + 
+        ASCII_UTIL_HEXMAP[(in >> 4) & 0xF] + ASCII_UTIL_HEXMAP[in & 0xF];
+}
+
+static int HexToInt(string s) {
+    int i;
+
+    for (i = 0; i < 16; i += 1) {
+        if (StringEqual(s, ASCII_UTIL_HEXMAP[i], false)) {
+            return i; 
+        }
+    }
+    return 0; 
+}
+
+static int HexByteToInt(string in) {
+    int high = HexToInt(StringSub(in, 1, 1)); 
+    int low = HexToInt(StringSub(in, 2, 2)); 
+    return (high << 4) | low;
+}
+
+string HexToDecimal(string s) {
+    int len = StringLength(s);
+    int i;
+    int byteValue;
+    string result = "0";
+    string byteString;
+
+    for (i = 0; i < len; i += 2) {
+        byteString = StringSub(s, i + 1, i + 2);
+        byteValue = HexByteToInt(byteString);
+        result = AddByteToString(result, byteValue);
+    }
+
+    return result;
+}
+
+string HexToText(string s) {
+    int len = StringLength(s);
+    string byteHex;
+    int byteValue;
+    string result = "";
+    int i;
+
+    for (i = 0; i < len; i += 2) {
+        byteHex = StringSub(s, i + 1, i + 2);
+        byteValue = HexByteToInt(byteHex);
+        result = result + ASCIIUtilIntToString(byteValue);
+    }
+
+    return result;
+}
+
+static int BinaryToInt(string s) {
+    int len = StringLength(s);
+    int value = 0;
+    int i;
+
+    for (i = 0; i < len; i += 1) {
+        if (StringSub(s, i + 1, i + 1) == "1") {
+            value = value + (1 << (len - 1 - i));
+        }
+    }
+
+    return value;
+}
+
+static string IntToBinary(int value, int bits) {
+    string bin = "";
+    int i;
+    int bit;
+
+    for (i = bits - 1; i >= 0; i -= 1) {
+        bit = (value >> i) & 1;
+        bin = bin + IntToString(bit);
+    }
+
+    return bin;
+}
+
+string BinaryToString(string binary) {
+    int len = StringLength(binary);
+    string result = "";
+    int i;
+    int j;
+    int value;
+
+    for (i = 0; i < len; i += 8) {
+        value = 0;
+
+        for (j = 0; j < 8; j += 1) {
+            if (StringSub(binary, i + j + 1, i + j + 1) == "1") {
+                value = value + (1 << (7 - j));
+            }
+        }
+
+        result = result + ASCIIUtilIntToString(value);
+    }
+
+    return result;
+}
+
+string StringToBinary(string s) {
+    int len = StringLength(s);
+    string bin = "";
+    string chunk;
+    int i;
+    int j;
+    int value;
+
+    for (i = 0; i < len; i += 1) {
+        value = ASCIIUtilStringToInt(s, i + 1);
+        chunk = "";
+        for (j = 7; j >= 0; j -= 1) {
+            if ((value & (1 << j)) != 0) {
+                chunk = chunk + "1";
+            } else {
+                chunk = chunk + "0";
+            }
+        }
+
+        bin = bin + chunk;
+    }
+
+    return bin;
+}
+
+static string BinaryToDecimal(string s) {
+    int len = StringLength(s);
+    string decimal = "";
+    int[2048] maxDigits;
+    int decimalLen = 1;
+    int i;
+    int j;
+    int carry;
+    int digit;
+    int bitValue;
+
+    maxDigits[1] = 0;
+
+    for (i = 1; i <= len; i += 1) {
+        // Multiply the current decimal number by 2
+        carry = 0;
+        for (j = 1; j <= decimalLen; j += 1) {
+            digit = maxDigits[j] * 2 + carry;
+            carry = digit / 10;
+            maxDigits[j] = digit % 10;
+        }
+        if (carry > 0) {
+            decimalLen += 1;
+            maxDigits[decimalLen] = carry;
+        }
+        // Add the current bit if it's 1
+        bitValue = StringToInt(StringSub(s, i, i));
+        if (bitValue == 1) {
+            // Add 1 to the decimal number
+            carry = 1;
+            for (j = 1; j <= decimalLen; j += 1) {
+                digit = maxDigits[j] + carry;
+                carry = digit / 10;
+                maxDigits[j] = digit % 10;
+                if (carry == 0) {
+                    break;
+                }
+            }
+            if (carry > 0) {
+                decimalLen += 1;
+                maxDigits[decimalLen] = carry;
+            }
+        }
+    }
+
+    // Build string
+    for (i = decimalLen; i >= 1; i -= 1) {
+        decimal = decimal + IntToString(maxDigits[i]);
+    }
+
+    return decimal;
+}
+
+string HexToBinary(string s) {
+    int len = StringLength(s);
+    string bin = "";
+    string hex;
+    int i;
+    int hexValue;
+        
+    for (i = 0; i < len; i += 1) {
+        hex = StringSub(s, i + 1, i + 1);
+        hexValue = HexToInt(hex);
+        bin = bin + ASCII_UTIL_HEX_BINARYMAP[hexValue];
+    }
+    
+    return bin;
+}
+
+string BinaryToHex(string s) {
+    int len = StringLength(s);
+    string hex = "";
+    int i; 
+    int hexValue;
+    string bits;
+
+    for (i = 0; i < len; i += 4) {
+        if (i + 4 <= len) {
+            bits = StringSub(s, i + 1, i + 4);
+        } else {
+            bits = StringSub(s, i + 1, len) + StringRepeat("0", 4 - StringLength(StringSub(s, i + 1, len)));
+        }
+
+        hexValue = BinaryToInt(bits);
+        hex = hex + ASCII_UTIL_HEXMAP[hexValue];
+    }
+
+    return hex;
+}
+
+string EncodeBase64(string input) {    
+    int inputLen = StringLength(input);
+    string encoded = "";
+    int i;
+    int char1; int char2; int char3;
+    int byte1; int byte2; int byte3; int byte4;
+    // Process 3 bytes at a time
+    for (i = 1; i <= inputLen; i += 3) {
+        // Get the ASCII value of the first character in the 3-byte block
+        char1 = ASCIIUtilStringToInt(input, i);
+        
+        if (i + 1 <= inputLen) {
+            char2 = ASCIIUtilStringToInt(input, i + 1);
+        } else {
+            char2 = 0;  // Pad with 0 if less than 3 bytes remain
+        }
+        if (i + 2 <= inputLen) {
+            char3 = ASCIIUtilStringToInt(input, i + 2);
+        } else {
+            char3 = 0;
+        }
+        // Calculate the indices of the Base64 characters
+        byte1 = char1 >> 2;
+        byte2 = ((char1 & 0x03) << 4) | (char2 >> 4);
+        byte3 = ((char2 & 0x0F) << 2) | (char3 >> 6);
+        byte4 = char3 & 0x3F;
+        // Append Base64 characters
+        encoded = encoded + ASCIIUtilIntToBase64(byte1) + ASCIIUtilIntToBase64(byte2);
+        if (i + 1 <= inputLen) {
+            encoded = encoded + ASCIIUtilIntToBase64(byte3);
+        } else {
+            encoded = encoded + "=";  // Pad if fewer than 3 bytes remain
+        }
+        if (i + 2 <= inputLen) {
+            encoded = encoded + ASCIIUtilIntToBase64(byte4);
+        } else {
+            encoded = encoded + "=";
+        }
+    }
+
+    return encoded;
+}
+
+string DecodeBase64(string base64) {
+    int base64Len = StringLength(base64);
+    string decoded = "";
+    int i;
+    int byte1; int byte2; int byte3; int byte4;
+    int char1; int char2; int char3;
+    // Process  4 characters at a time
+    for (i = 1; i <= base64Len; i += 4) {
+          byte1 = ASCIIUtilBase64ToInt(base64, i);
+          byte2 = ASCIIUtilBase64ToInt(base64, i + 1);
+        // Check for padding
+        if (i + 2 <= base64Len && StringSub(base64, i + 2, i + 2) != "=") {
+            byte3 = ASCIIUtilBase64ToInt(base64, i + 2);
+        } else {
+            byte3 = -1;
+        }
+        if (i + 3 <= base64Len && StringSub(base64, i + 3, i + 3) != "=") {
+            byte4 = ASCIIUtilBase64ToInt(base64, i + 3);
+        } else {
+            byte4 = -1;
+        }
+        // Convert back to the original 3 bytes
+        char1 = (byte1 << 2) | (byte2 >> 4);
+        decoded = decoded + ASCIIUtilIntToString(char1);
+        if (byte3 != -1) {
+            
+            char2 = ((byte2 & 0x0F) << 4) | (byte3 >> 2);  // 4-bit mask for lower nibble
+            decoded = decoded + ASCIIUtilIntToString(char2);
+        }
+        if (byte4 != -1) {
+            char3 = ((byte3 & 0x03) << 6) | byte4;
+            decoded = decoded + ASCIIUtilIntToString(char3);
+        }
+    }
+
+    return decoded;
+}
+
+string Base64ToDecimal(string s) {
+    int len = StringLength(s);
+    string bin = "";
+    string end;
+    int i;
+    int byte1; int byte2; int byte3; int byte4;
+    int char1; int char2; int char3;
+    int padding = 0;
+
+    // Count padding characters
+    while (len >= 1) {
+        end = StringSub(s, len, len);
+        if (end == "=") {
+            padding += 1;
+            len -= 1;
+        } else {
+            break;
+        }
+    }
+    // Process 4 characters at a time
+    for (i = 1; i <= len; i += 4) {
+        byte1 = ASCIIUtilBase64ToInt(s, i);
+        byte2 = ASCIIUtilBase64ToInt(s, i + 1);
+        // Check for padding
+        if (i + 2 <= len) {
+            byte3 = ASCIIUtilBase64ToInt(s, i + 2);
+        } else {
+            byte3 = 0;
+        }
+
+        if (i + 3 <= len) {
+            byte4 = ASCIIUtilBase64ToInt(s, i + 3);
+        } else {
+            byte4 = 0;
+        }
+        // Convert back to the original bytes
+        char1 = ((byte1 << 2) | (byte2 >> 4)) & 0xFF;
+        bin = bin + IntToBinary(char1, 8);
+
+        if (i + 2 <= len || padding < 2) {
+            char2 = (((byte2 & 0x0F) << 4) | (byte3 >> 2)) & 0xFF;
+            bin = bin + IntToBinary(char2, 8);
+        }
+        if (i + 3 <= len || padding < 1) {
+            char3 = (((byte3 & 0x03) << 6) | byte4) & 0xFF;
+            bin = bin + IntToBinary(char3, 8);
+        }
+    }
+
+    return BinaryToDecimal(bin);
+}
